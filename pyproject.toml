@@ -1,0 +1,8 @@
+[project]
+name = "trafficsign-cyclegan"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "tensorflow>=2.21.0",
+]
