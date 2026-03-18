@@ -9,7 +9,8 @@ Ruhr University Bochum.
 '''
 
 
-import tensorflow                   as tf
+import tensorflow.compat.v1         as tf
+tf.disable_v2_behavior()
 import cyclegan.model.architecture  as arch
 import cyclegan.util.config         as cfg
 import cyclegan.util.exceptions     as exc

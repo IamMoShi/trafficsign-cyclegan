@@ -15,7 +15,7 @@ Ruhr University Bochum.
 
 
 import enum
-import tensorflow                   as tf
+import tensorflow.compat.v1         as tf
 import cyclegan.model.operations    as ops
 import cyclegan.util.config         as cfg
 import cyclegan.util.exceptions     as exc
@@ -241,7 +241,7 @@ class VectorDecorator(Graph):
         for i in range(len(vectors)):
             if not self.concat[i]: continue
 
-            projected = tf.layers.dense(vectors[i], self.PROJECTION_CHANNELS * int(image.shape[1]) * int(image.shape[2]))
+            projected = tf.keras.layers.Dense(self.PROJECTION_CHANNELS * int(image.shape[1]) * int(image.shape[2]))(vectors[i])
             reshaped.append(tf.reshape(projected, [-1, int(image.shape[1]), int(image.shape[2]), self.PROJECTION_CHANNELS]))
 
         image = tf.concat([image] + reshaped, 3)
@@ -278,8 +278,8 @@ class InfoGANDecorator(Graph):
     def build_graph(self, input):
         output = self.element.build_graph(input)
 
-        flattened = tf.layers.flatten(self.element.layers[-2])
-        secondary_head = tf.layers.dense(flattened, self.output_size)
+        flattened = tf.keras.layers.Flatten()(self.element.layers[-2])
+        secondary_head = tf.keras.layers.Dense(self.output_size)(flattened)
 
         self.layers = self.element.layers + [secondary_head]
 

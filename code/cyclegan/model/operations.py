@@ -8,7 +8,7 @@ Ruhr University Bochum.
 '''
 
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 
 CONV2D_NAME = "conv2d"
@@ -34,7 +34,18 @@ def instance_normalization(input, epsilon = 1e-6, affine = True):
         The image-channel-wise contrast normalized tensor.
     '''
 
-    return tf.contrib.layers.instance_norm(input, epsilon = epsilon, scale = affine, center = affine)   #pylint: disable=E1101
+    mean, variance = tf.nn.moments(input, axes = [1, 2], keep_dims = True)
+    normalized = (input - mean) / tf.sqrt(variance + epsilon)
+
+    if not affine:
+        return normalized
+
+    channel_count = int(input.shape[-1])
+    with tf.variable_scope(None, default_name = "instance_norm"):
+        gamma = tf.get_variable("gamma", [channel_count], initializer = tf.ones_initializer())
+        beta = tf.get_variable("beta", [channel_count], initializer = tf.zeros_initializer())
+
+    return normalized * tf.reshape(gamma, [1, 1, 1, channel_count]) + tf.reshape(beta, [1, 1, 1, channel_count])
 
 def get_pad_amounts_construction(input, kernel_size, strides):
     '''
@@ -143,7 +154,10 @@ def conv2d_downsample(input, kernel_size, filter_count, initializer_std = 0.02, 
 
     with tf.name_scope(CONV2D_DOWNSAMPLE_NAME):
         padded = pad_same(input, kernel_size, strides = [2, 2], padding_mode = padding_mode)
-        conv = tf.layers.conv2d(padded, filter_count, kernel_size, strides = 2, padding = 'VALID', kernel_initializer = tf.truncated_normal_initializer(stddev = initializer_std))
+        conv = tf.keras.layers.Conv2D(
+            filter_count, kernel_size, strides = 2, padding = 'valid',
+            kernel_initializer = tf.truncated_normal_initializer(stddev = initializer_std)
+        )(padded)
         norm = instance_normalization(conv, affine = instance_norm_affine)
         relu = tf.nn.relu(norm)
 
@@ -168,7 +182,10 @@ def conv2d_downsample_leaky(input, kernel_size, filter_count, slope, instance_no
 
     with tf.name_scope(CONV2d_DOWNSAMPLE_LEAKY_NAME):
         padded = pad_same(input, kernel_size, strides = [2, 2], padding_mode = padding_mode)
-        conv = tf.layers.conv2d(padded, filter_count, kernel_size, strides = 2, padding = 'VALID', kernel_initializer = tf.truncated_normal_initializer(stddev = initializer_std))
+        conv = tf.keras.layers.Conv2D(
+            filter_count, kernel_size, strides = 2, padding = 'valid',
+            kernel_initializer = tf.truncated_normal_initializer(stddev = initializer_std)
+        )(padded)
 
         if instance_norm:
             norm = instance_normalization(conv, affine = instance_norm_affine)
@@ -198,7 +215,10 @@ def conv2d(input, kernel_size, filter_count, initializer_std = 0.02, padding_mod
 
     with tf.name_scope(CONV2D_NAME):
         padded = pad_same(input, kernel_size, padding_mode = padding_mode)
-        conv = tf.layers.conv2d(padded, filter_count, kernel_size, padding = 'VALID', kernel_initializer = tf.truncated_normal_initializer(stddev = initializer_std))
+        conv = tf.keras.layers.Conv2D(
+            filter_count, kernel_size, padding = 'valid',
+            kernel_initializer = tf.truncated_normal_initializer(stddev = initializer_std)
+        )(padded)
 
         if instance_norm:
             norm = instance_normalization(conv, affine = instance_norm_affine)
@@ -226,8 +246,30 @@ def conv2d_upsample(input, kernel_size, filter_count, initializer_std = 0.02, in
     Returns:
         The output tensor of the layer.
     '''
-    with tf.name_scope(CONV2D_UPSAMPLE_NAME):
-        conv = tf.layers.conv2d_transpose(input, filter_count, kernel_size, strides = 2, padding = 'SAME', kernel_initializer = tf.truncated_normal_initializer(stddev = initializer_std))
+    with tf.variable_scope(None, default_name = CONV2D_UPSAMPLE_NAME):
+        in_channels = int(input.shape[3])
+        kernel = tf.get_variable(
+            "kernel",
+            [kernel_size[0], kernel_size[1], filter_count, in_channels],
+            initializer = tf.truncated_normal_initializer(stddev = initializer_std)
+        )
+        bias = tf.get_variable("bias", [filter_count], initializer = tf.zeros_initializer())
+
+        output_shape = tf.stack([
+            tf.shape(input)[0],
+            tf.shape(input)[1] * 2,
+            tf.shape(input)[2] * 2,
+            filter_count
+        ])
+
+        conv = tf.nn.conv2d_transpose(
+            input,
+            kernel,
+            output_shape = output_shape,
+            strides = [1, 2, 2, 1],
+            padding = 'SAME'
+        )
+        conv = tf.nn.bias_add(conv, bias)
         norm = instance_normalization(conv, affine = instance_norm_affine)
         relu = tf.nn.relu(norm)
 

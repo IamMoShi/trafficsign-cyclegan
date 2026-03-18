@@ -10,7 +10,7 @@ Ruhr University Bochum.
 
 import os
 import math
-import tensorflow               as tf
+import tensorflow.compat.v1     as tf
 import cyclegan.util.exceptions as exc
 
 

@@ -13,3 +13,4 @@ __pycache__/
 *.nav
 /docs/colloquium/figures
 /docs/colloquium/gfx
+datasets

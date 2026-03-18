@@ -13,7 +13,8 @@ import datetime
 import time
 import math
 import os
-import tensorflow                   as tf
+import tensorflow.compat.v1         as tf
+tf.disable_v2_behavior()
 import cyclegan.model.train         as train
 import cyclegan.util.config         as cfg
 import cyclegan.model.input         as input

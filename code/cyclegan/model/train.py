@@ -8,7 +8,7 @@ Ruhr University Bochum.
 '''
 
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 
 LEARNING_RATE_NAME = "learning_rate"
